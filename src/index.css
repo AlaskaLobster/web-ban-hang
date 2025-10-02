@@ -7,3 +7,19 @@ body,
 #root {
     height: 100%;
 }
+/* Thêm các kiểu cho menu điều hướng hàng ngang */
+nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px; /* Khoảng cách giữa các mục menu */
+}
+
+nav a {
+  display: block;
+  padding: 5px 0px;
+  text-align: center;
+}
+
+nav a:hover {
+  color: #f97316; /* Màu hover: bạn có thể thay đổi màu sắc này */
+}
