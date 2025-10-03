@@ -39,7 +39,7 @@ const ProductCard: React.FC<Props> = ({ product }) => {
             {product.label}
           </span>
         ) : null}
-        <button className="absolute top-3 right-3 bg-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition">
+        <button className="absolute top-3 right-3 bg-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition" type="button">
           <Heart className="w-5 h-5" />
         </button>
       </div>
@@ -55,9 +55,7 @@ const ProductCard: React.FC<Props> = ({ product }) => {
           {[...Array(5)].map((_, i) => (
             <Star
               key={i}
-              className={`w-4 h-4 ${
-                i < rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'
-              }`}
+              className={`w-4 h-4 ${i < rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`}
             />
           ))}
         </div>
@@ -69,10 +67,13 @@ const ProductCard: React.FC<Props> = ({ product }) => {
           ) : null}
         </div>
 
-        {/* Add to cart sẽ gắn sau */}
-        <button className="w-full bg-black hover:bg-orange-500 text-white py-2.5 rounded-lg transition font-bold uppercase text-sm">
-          Thêm Vào Giỏ
-        </button>
+        {/* Nút XEM NGAY: dẫn tới trang chi tiết sản phẩm */}
+        <Link
+          to={`/product/${product.id}`}
+          className="block w-full text-center bg-black hover:bg-orange-500 text-white py-2.5 rounded-lg transition font-bold uppercase text-sm"
+        >
+          Xem ngay
+        </Link>
       </div>
     </div>
   );

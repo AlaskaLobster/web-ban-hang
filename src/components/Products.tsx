@@ -5,7 +5,7 @@ import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 import { supabase } from '../supabaseClient';  // Sử dụng đường dẫn đúng
-    
+import { Link } from 'react-router-dom';
 
 interface Product {
   id: number;
@@ -108,9 +108,13 @@ const Products: React.FC = () => {
                     <span className="text-orange-500 font-black text-xl">{product.price}</span>
                     <span className="text-gray-400 text-sm line-through">{product.oldPrice}</span>
                   </div>
-                  <button className="w-full bg-black hover:bg-orange-500 text-white py-2.5 rounded-lg transition font-bold uppercase text-sm">
-                    Thêm Vào Giỏ
-                  </button>
+                 <Link
+  to={`/product/${product.id}`}
+  className="block w-full text-center bg-black hover:bg-orange-500 text-white py-2.5 rounded-lg transition font-bold uppercase text-sm"
+>
+  Xem ngay
+</Link>
+
                 </div>
               </div>
             </SwiperSlide>

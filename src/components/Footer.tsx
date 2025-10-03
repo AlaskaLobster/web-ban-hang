@@ -8,7 +8,7 @@ const Footer: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           <div>
             <h3 className="text-2xl font-black mb-4">
-              YOLO <span className="text-orange-500">SPORT</span>
+              HIDAY <span className="text-orange-500">SPORT</span>
             </h3>
             <p className="text-gray-400 mb-4">
               Thương hiệu thời trang thể thao số 1 Việt Nam

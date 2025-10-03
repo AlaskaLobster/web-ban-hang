@@ -5,7 +5,7 @@ import CategoryCarousel from '../components/CategoryCarousel';
 import Products from '../components/Products';
 import Benefits from '../components/Benefits';
 import Reviews from '../components/Reviews';
-import Footer from '../components/Footer';
+
 
 const Home: React.FC = () => {
   return (
@@ -15,7 +15,6 @@ const Home: React.FC = () => {
       <Products />
       <Benefits />
       <Reviews />
-      <Footer />
     </div>
   );
 };
