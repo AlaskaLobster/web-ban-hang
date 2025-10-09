@@ -5,6 +5,7 @@ import CategoryCarousel from '../components/CategoryCarousel';
 import Products from '../components/Products';
 import Benefits from '../components/Benefits';
 import Reviews from '../components/Reviews';
+import { Link } from 'react-router-dom';
 
 
 const Home: React.FC = () => {

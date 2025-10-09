@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { Link, useNavigate } from 'react-router-dom';
 import { Loader2, Minus, Plus, Trash2 } from 'lucide-react';
+// src/pages/CartPage.tsx
+import { useCart } from '../contexts/CartContext'; // thêm dòng này
 
 type Row = {
   id: number;
@@ -35,7 +37,9 @@ const CartPage: React.FC = () => {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-
+  const { refresh } = useCart();
+// sau khi updateQty/removeRow thành công:
+refresh();
   const load = async () => {
     setLoading(true);
     const { data: userRes } = await supabase.auth.getUser();
