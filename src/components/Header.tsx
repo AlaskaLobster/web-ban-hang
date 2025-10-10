@@ -6,20 +6,11 @@ import NavBar from './NavBar';  // Import NavBar component
 
 interface HeaderProps {
   cartCount: number;
+  user?: any | null;
 }
 
-const Header: React.FC<HeaderProps> = ({ cartCount }) => {
+const Header: React.FC<HeaderProps> = ({ cartCount, user }) => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [user, setUser] = useState<any>(null);
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      setUser(data?.user || null);  // Lưu thông tin người dùng vào state
-    };
-
-    fetchUser();
-  }, []);
 
   return (
     <header className="bg-white border-b sticky top-0 z-50 shadow-sm">
@@ -45,9 +36,9 @@ const Header: React.FC<HeaderProps> = ({ cartCount }) => {
 
           {/* Icons */}
           <div className="flex items-center gap-4">
-            <button className="hidden md:flex items-center gap-2 hover:text-orange-500 transition">
+            <Link to="/favorites" className="hidden md:flex items-center gap-2 hover:text-orange-500 transition">
               <Heart className="w-6 h-6" />
-            </button>
+            </Link>
             <Link to="/cart" className="relative hover:text-orange-500 transition">
               <ShoppingCart className="w-6 h-6" />
               {cartCount > 0 && (
@@ -95,6 +86,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount }) => {
             <Link to="/products" className="block py-2 font-bold hover:text-orange-500 transition uppercase">Danh mục</Link>
             <Link to="/cart" className="block py-2 font-bold hover:text-orange-500 transition uppercase">Giỏ hàng</Link>
             <Link to="/auth" className="block py-2 font-bold hover:text-orange-500 transition uppercase">Đăng nhập</Link>
+            <Link to="/favorites" className="block py-2 font-bold hover:text-orange-500 transition uppercase">Yêu thích</Link>
           </div>
         )}
       </div>

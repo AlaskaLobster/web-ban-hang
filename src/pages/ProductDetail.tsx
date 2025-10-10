@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { Minus, Plus, Loader2, CheckCircle2, Image as ImageIcon, Star } from 'lucide-react';
 import RelatedProducts from '../components/RelatedProducts';
+import ProductReviews from '../components/ProductReviews';
 type DbProduct = {
   id: number;
   name: string;
@@ -43,6 +44,9 @@ const ProductDetail: React.FC = () => {
   const [added, setAdded] = useState(false);
   const [reviewCount, setReviewCount] = useState<number>(0);
   const [reviewAvg, setReviewAvg] = useState<number>(0);
+  const [reviewsList, setReviewsList] = useState<Array<{id:number,user_id:string|null,rating:number,comment?:string,content?:string,created_at?:string}>>([]);
+  const [newRating, setNewRating] = useState<number>(5);
+  const [newComment, setNewComment] = useState<string>('');
 
   // Tải dữ liệu sản phẩm + ảnh + variants + tổng quan review
   useEffect(() => {
@@ -111,6 +115,22 @@ const ProductDetail: React.FC = () => {
         const arr = (rdata || []).map((r: any) => r.rating as number);
         const avg = arr.length ? arr.reduce((a: number, b: number) => a + b, 0) / arr.length : 0;
         setReviewAvg(avg);
+        // load latest reviews (limit 10) — do not filter by `approved` to support simpler schemas
+        try {
+          const { data: list, error: listErr } = await supabase
+            .from('product_reviews')
+            // select both content and comment for compatibility with different schemas
+            .select('id,user_id,rating,content,comment,created_at')
+            .eq('product_id', p.id)
+            .order('created_at', { ascending: false })
+            .limit(10);
+          if (listErr) throw listErr;
+          setReviewsList(list || []);
+        } catch (e: any) {
+          console.error('[ProductDetail] reviews fetch failed:', e);
+          // if server returned an http error body, show in console to help debugging
+          setReviewsList([]);
+        }
       }
 
       setLoading(false);
@@ -160,6 +180,49 @@ const ProductDetail: React.FC = () => {
       alert('Thêm vào giỏ thất bại: ' + e.message);
     } finally {
       setAdding(false);
+    }
+  };
+
+  const submitReview = async () => {
+    if (!product) return;
+    const { data } = await supabase.auth.getUser();
+    const user = data?.user;
+    if (!user) {
+      alert('Vui lòng đăng nhập để gửi đánh giá');
+      return;
+    }
+    if (!newComment.trim()) {
+      alert('Vui lòng nhập nhận xét');
+      return;
+    }
+
+    try {
+      const insertPayload: any = {
+        product_id: product.id,
+        user_id: user.id,
+        rating: newRating,
+        // use `content` field which exists in this DB schema
+        content: newComment,
+      };
+
+      // Insert without referencing optional columns like `approved` to avoid schema errors
+      const { data: insertData, error } = await supabase.from('product_reviews').insert(insertPayload).select();
+      if (error) {
+        console.error('[ProductDetail] submitReview error object:', error);
+        throw error;
+      }
+
+      setNewComment('');
+      setNewRating(5);
+      alert('Cảm ơn bạn! Đánh giá của bạn đã được gửi.');
+    } catch (e: any) {
+      console.error('[ProductDetail] submitReview error', e);
+      const msg = e?.message || String(e);
+      if (msg.includes('approved')) {
+        alert('Gửi đánh giá thất bại: schema thiếu cột `approved`. Vui lòng kiểm tra cấu trúc bảng product_reviews.');
+      } else {
+        alert('Gửi đánh giá thất bại: ' + msg);
+      }
     }
   };
 
@@ -328,6 +391,8 @@ const ProductDetail: React.FC = () => {
               </div>
               <Link to="#" className="text-sm text-orange-600 hover:underline">Xem đánh giá</Link>
             </div>
+
+            <ProductReviews productId={Number(id)} />
           </div>
         </div>
       </section>

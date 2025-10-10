@@ -6,6 +6,7 @@ import ProductDetail from './pages/ProductDetail';
 import Auth from './pages/Auth';
 import CartPage from './pages/CartPage';
 import UserAccountPage from './pages/UserAccountPage'
+import FavoritesPage from './pages/Favorites';
 export default function App() {
   return (
     <Routes>
@@ -15,6 +16,7 @@ export default function App() {
         <Route path="product/:id" element={<ProductDetail />} />
         <Route path="auth" element={<Auth />} />
         <Route path="cart" element={<CartPage />} />
+        <Route path="favorites" element={<FavoritesPage />} />
         <Route path="*" element={<Home />} />
       <Route path="/user-account" element={<UserAccountPage />} />
        

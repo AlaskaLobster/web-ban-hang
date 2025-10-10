@@ -18,22 +18,40 @@ const Auth: React.FC = () => {
     setLoading(true);
     setNote(null);
 
-    const redirectTo = window.location.origin + "/user-account";  // Điều hướng sau khi xác nhận
+        // NOTE: avoid sending redirectTo here to prevent 400 errors if the URL
+        // is not whitelisted in Supabase Auth settings. We'll rely on default flow.
+        try {
+          const { data, error } = await supabase.auth.signUp({ email, password }, { data: { full_name: fullName } });
+          console.log('[Auth] signUp result', { data, error });
 
-    const { error } = await supabase.auth.signUp(
-      { email, password },
-      {
-        data: { full_name: fullName },  // Lưu họ và tên vào metadata
-        redirectTo
+      if (error) {
+            console.error('[Auth] signUp error full', error);
+            setNote(error.message || 'Đăng ký thất bại');
+            return;
       }
-    );
 
-    setLoading(false);
-    if (error) {
-      setNote(error.message);
-    } else {
+      // Hybrid approach: try to upsert a profile record immediately for the new user.
+      // If the profiles table doesn't exist yet, this will fail silently (we only log).
+      try {
+        const user = data?.user;
+        if (user) {
+          const profile = {
+            id: user.id,
+            full_name: fullName || user.user_metadata?.full_name || null,
+            email: user.email || null,
+            updated_at: new Date().toISOString(),
+          } as any;
+          const { error: upsertErr } = await supabase.from('profiles').upsert(profile);
+          if (upsertErr) console.warn('[Auth] profiles upsert warning', upsertErr.message || upsertErr);
+        }
+      } catch (pe) {
+        console.warn('[Auth] profiles upsert failed', pe);
+      }
+
       setNote('Đăng ký thành công! Vui lòng kiểm tra email xác minh.');
       setTab('signin');
+    } finally {
+      setLoading(false);
     }
   };
 
