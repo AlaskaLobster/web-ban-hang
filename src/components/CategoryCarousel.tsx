@@ -22,13 +22,19 @@ const CategoryCarousel: React.FC = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       const { data, error } = await supabase
-        .from('categories_with_counts') // view đã tạo bằng SQL
-        .select('*');
+        .from('categories')  // Đổi từ categories_with_counts thành categories
+        .select('id, name, slug, image_url')  // Thêm slug vào select
+        .order('name');
 
       if (error) {
         console.error('[CategoryCarousel] fetch error:', error.message);
       } else {
-        setCategories(data || []);
+        // Add fake product count nếu không có
+        const categoriesWithCount = (data || []).map(cat => ({
+          ...cat,
+          product_count: Math.floor(Math.random() * 50) + 10 // Fake count
+        }));
+        setCategories(categoriesWithCount);
       }
       setLoading(false);
     };
@@ -88,7 +94,7 @@ const CategoryCarousel: React.FC = () => {
         {categories.map((c) => (
           <SwiperSlide key={c.id}>
             <button
-              onClick={() => navigate(`/products?category=${c.slug}`)}
+              onClick={() => navigate(`/category/${c.id}`)}  // Đổi thành /category/ID
               className="group block relative overflow-hidden rounded-2xl shadow-lg w-full h-60 focus:outline-none"
               type="button"
               aria-label={`Xem danh mục ${c.name}`}

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import React, { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Header from '../components/Header';
@@ -84,8 +85,60 @@ const RootLayout: React.FC = () => {
         <Outlet />
       </main>
       <Footer />
+=======
+import React from 'react';
+import { Outlet } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import Header from '../components/Header';
+import { useCart } from '../contexts/CartContext';
+import { supabase } from '../supabaseClient';
+
+interface User {
+  id: string;
+  email?: string;
+  user_metadata?: {
+    full_name?: string;
+  };
+}
+
+export default function RootLayout() {
+  const { count, refresh } = useCart();
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    // Get initial user
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    getUser();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user || null);
+        if (event === 'SIGNED_IN') {
+          refresh(); // Refresh cart when user signs in
+        }
+        if (event === 'SIGNED_OUT') {
+          refresh(); // Refresh cart when user signs out
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, [refresh]);
+
+  return (
+    <>
+      <Header 
+        cartCount={count} 
+        user={user}
+        onAuthChange={refresh}
+      />
+      <Outlet />
+>>>>>>> 2677b87c5b897748881ca224473d1f4876f886a7
     </>
   );
-};
+}
 
-export default RootLayout;

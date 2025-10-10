@@ -23,3 +23,10 @@ nav a {
 nav a:hover {
   color: #f97316; /* Màu hover: bạn có thể thay đổi màu sắc này */
 }
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

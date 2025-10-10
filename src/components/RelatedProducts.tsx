@@ -1,94 +1,68 @@
+// src/components/RelatedProducts.tsx
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
-import ProductCard, { Product } from '../pages/ProductCard';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import { Navigation, FreeMode } from 'swiper/modules';
-import 'swiper/css';
-import 'swiper/css/navigation';
+import { Link } from 'react-router-dom';
 
-type Props = {
-  productId: number;
-  categoryId?: number | null;
-  limit?: number; // mặc định 12
+type Product = {
+  id: number;
+  name: string;
+  price: string;
+  oldPrice: string | null;
+  image: string;
 };
 
-const RelatedProducts: React.FC<Props> = ({ productId, categoryId, limit = 12 }) => {
+type Props = {
+  categoryId: number;
+  excludeId?: number; // <-- THÊM prop này
+};
+
+const RelatedProducts: React.FC<Props> = ({ categoryId, excludeId }) => {
   const [items, setItems] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let ignore = false;
-
     const load = async () => {
-      setLoading(true);
-      if (!categoryId) {
-        setItems([]);
-        setLoading(false);
-        return;
+      let query = supabase
+        .from('products')
+        .select('id,name,price,oldPrice,image')
+        .eq('category_id', categoryId)
+        .limit(12);
+
+      // Nếu muốn filter ngay trên DB (tốt hơn)
+      if (excludeId != null) {
+        query = query.neq('id', excludeId);
       }
 
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('category_id', categoryId)
-        .neq('id', productId)
-        .order('id', { ascending: false })
-        .limit(limit);
-
-      if (ignore) return;
-
+      const { data, error } = await query;
       if (error) {
-        console.error('[RelatedProducts] error:', error.message);
+        console.error('[RelatedProducts]', error.message);
         setItems([]);
       } else {
-        const mapped = (data || []).map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          price: p.price,
-          oldPrice: p.oldPrice ?? null,
-          image: p.image,
-          label: p.label ?? null,
-          rating: p.rating ?? 0,
-        })) as Product[];
-        setItems(mapped);
+        setItems((data || []) as Product[]);
       }
-      setLoading(false);
     };
-
     load();
-    return () => { ignore = true; };
-  }, [productId, categoryId, limit]);
+  }, [categoryId, excludeId]);
 
-  if (loading) return null;
-  if (items.length === 0) return null;
-
-  // Nếu ít hơn số slide desktop, không loop nhưng vẫn kéo tự do
-  const slidesDesktop = 4;
-  const canLoop = items.length >= slidesDesktop;
+  if (!items.length) return null;
 
   return (
-    <section className="container mx-auto px-4 pb-16">
-      <h2 className="text-2xl md:text-3xl font-black mb-6">Sản phẩm tương tự</h2>
-
-      <Swiper
-        modules={[Navigation, FreeMode]}
-        navigation
-        freeMode={{ enabled: true }}
-        grabCursor
-        spaceBetween={16}
-        slidesPerView={2}
-        breakpoints={{ 640: { slidesPerView: 3 }, 1024: { slidesPerView: 4 } }}
-        loop={canLoop}
-        preventClicks
-        preventClicksPropagation
-      >
+    <div className="mt-8">
+      <h3 className="text-xl font-bold mb-4">Sản phẩm liên quan</h3>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {items.map((p) => (
-          <SwiperSlide key={p.id}>
-            <ProductCard product={p} />
-          </SwiperSlide>
+          <Link key={p.id} to={`/product/${p.id}`} className="block border rounded-xl overflow-hidden hover:shadow-md transition">
+            <div className="aspect-square bg-gray-50">
+              <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+            </div>
+            <div className="p-3">
+              <div className="font-semibold line-clamp-2">{p.name}</div>
+              <div className="text-orange-600 font-bold mt-1">{p.price}</div>
+              {p.oldPrice && <div className="text-gray-400 text-sm line-through">{p.oldPrice}</div>}
+            </div>
+          </Link>
         ))}
-      </Swiper>
-    </section>
+      </div>
+    </div>
   );
 };
 

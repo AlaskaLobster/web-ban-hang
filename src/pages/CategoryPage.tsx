@@ -1,210 +1,247 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import ProductCard, { Product } from '../pages/ProductCard';
 import Pagination from '../components/Pagination';
-import { Filter, Loader2 } from 'lucide-react';
 
-type CategoryRow = { id: number; name: string; slug: string };
+interface Product {
+  id: number;
+  name: string;
+  price: string;
+  image: string;
+  label: string | null;
+}
 
-const PAGE_SIZE = 6;
-const LABELS = ['all', 'HOT', 'NEW', 'SALE'] as const;
-type LabelFilter = typeof LABELS[number];
+interface Category {
+  id: number;
+  name: string;
+}
 
-const CategoryPage: React.FC = () => {
+const ITEMS_PER_PAGE = 8; // Đổi lại 12 sản phẩm/trang thay vì 4
+
+export default function CategoryPage() {
+  const { id } = useParams<{ id: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const categorySlug = searchParams.get('category') || 'all';
-  const labelFilter = (searchParams.get('label') || 'all') as LabelFilter;
-  const page = Math.max(1, Number(searchParams.get('page') || '1'));
-
-  const [category, setCategory] = useState<CategoryRow | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
-  const [total, setTotal] = useState<number>(0);
+  const [category, setCategory] = useState<Category | null>(null);
   const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string>('');
+  const [totalCount, setTotalCount] = useState(0);
+  
+  // Get current page from URL
+  const currentPage = Number(searchParams.get('page')) || 1;
 
-  const title = useMemo(() => {
-    if (categorySlug === 'all') return 'Tất cả sản phẩm';
-    if (category) return `Danh mục: ${category.name}`;
-    return 'Đang tải...';
-  }, [categorySlug, category]);
-
-  // 1) Lấy category theo slug (nếu có)
   useEffect(() => {
-    let ignore = false;
-
-    const loadCategory = async () => {
-      setLoading(true);
-      setNotFound(false);
-      setCategory(null);
-
-      if (categorySlug === 'all') {
-        setCategory(null);
-        setLoading(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('categories')
-        .select('id,name,slug')
-        .eq('slug', categorySlug)
-        .maybeSingle();
-
-      if (ignore) return;
-
-      if (error) {
-        console.error('[CategoryPage] category error:', error.message);
-        setNotFound(true);
-      } else if (!data) {
-        setNotFound(true);
-      } else {
-        setCategory(data);
-      }
-      setLoading(false);
-    };
-
-    loadCategory();
-    return () => {
-      ignore = true;
-    };
-  }, [categorySlug]);
-
-  // 2) Lấy products theo category + label + page
-  useEffect(() => {
-    let ignore = false;
-
-    const loadProducts = async () => {
-      setLoading(true);
-
-      let query = supabase
-        .from('products')
-        .select('*', { count: 'exact' })
-        .order('id', { ascending: false });
-
-      if (categorySlug !== 'all') {
-        if (!category) {
-          setLoading(false);
-          return;
-        }
-        query = query.eq('category_id', category.id);
-      }
-
-      if (labelFilter !== 'all') {
-        query = query.eq('label', labelFilter);
-      }
-
-      const from = (page - 1) * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-
-      const { data, error, count } = await query.range(from, to);
-
-      if (ignore) return;
-
-      if (error) {
-        console.error('[CategoryPage] products error:', error.message);
-        setProducts([]);
-        setTotal(0);
-      } else {
-        const mapped = (data || []).map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          price: p.price,
-          oldPrice: p.oldPrice ?? null,
-          image: p.image,
-          label: p.label ?? null,
-          rating: p.rating ?? 0,
-        })) as Product[];
-
-        setProducts(mapped);
-        setTotal(count || 0);
-      }
-      setLoading(false);
-    };
-
-    loadProducts();
-    return () => {
-      ignore = true;
-    };
-  }, [categorySlug, category, labelFilter, page]);
-
-  const setParam = (key: string, value: string) => {
-    const next = new URLSearchParams(searchParams);
-    if (value === 'all' && (key === 'category' || key === 'label')) {
-      next.delete(key);
-    } else {
-      next.set(key, value);
+    if (id) {
+      loadCategory();
+      loadProducts();
     }
-    if (key !== 'page') next.set('page', '1'); // đổi filter thì reset page
-    setSearchParams(next, { replace: true });
+  }, [id, currentPage]);
+
+  const loadCategory = async () => {
+    if (!id) return;
+
+    const { data, error } = await supabase
+      .from('categories')
+      .select('id, name')
+      .eq('id', Number(id))
+      .single();
+
+    if (error) {
+      console.error('Error loading category:', error);
+    } else {
+      setCategory(data);
+    }
   };
 
-  if (notFound) {
+  const loadProducts = async () => {
+    if (!id) return;
+
+    const startTime = Date.now();
+    setLoading(true);
+    setDebugInfo('Đang tải sản phẩm...');
+
+    try {
+      // Get total count
+      const { count } = await supabase
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .eq('category_id', Number(id));
+
+      // Get paginated products
+      const from = (currentPage - 1) * ITEMS_PER_PAGE;
+      const to = from + ITEMS_PER_PAGE - 1;
+
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, price, image, label')
+        .eq('category_id', Number(id))
+        .order('id', { ascending: false })
+        .range(from, to);
+
+      const endTime = Date.now();
+      const queryTime = endTime - startTime;
+
+      if (error) {
+        console.error('Error loading products:', error);
+        setDebugInfo(`❌ Lỗi: ${error.message}`);
+      } else {
+        setProducts(data || []);
+        setTotalCount(count || 0);
+        setDebugInfo(`✅ Trang ${currentPage}: ${data?.length || 0}/${count || 0} sản phẩm (${queryTime}ms)`);
+      }
+    } catch (err) {
+      setDebugInfo('❌ Lỗi kết nối');
+    }
+
+    setLoading(false);
+  };
+
+  const handlePageChange = (page: number) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('page', page.toString());
+    setSearchParams(params);
+    
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+  const formatPrice = (priceStr: string) => {
+    const price = Number(priceStr.replace(/[^\d]/g, '')) || 0;
+    return price.toLocaleString('vi-VN') + 'đ';
+  };
+
+  if (loading && !category) {
     return (
-      <section className="container mx-auto px-4 py-16">
-        <h1 className="text-2xl md:text-3xl font-bold mb-4">Danh mục không tồn tại</h1>
-        <Link to="/products" className="text-orange-500 hover:underline">
-          ← Quay lại tất cả sản phẩm
-        </Link>
-      </section>
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p>Đang tải danh mục...</p>
+        </div>
+      </div>
     );
   }
 
   return (
-    <section className="container mx-auto px-4 py-16">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl md:text-3xl font-black">{title}</h1>
-        <div className="text-sm text-gray-500">{total} sản phẩm</div>
+    <div className="container mx-auto px-4 py-8">
+      {/* Breadcrumb */}
+      <nav className="mb-6 text-sm">
+        <span className="mx-2 text-gray-400">/</span>
+        <span className="text-gray-900">{category?.name || 'Danh mục'}</span>
+      </nav>
+
+      {/* Header with Pagination Info */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">
+          {category?.name || 'Danh mục sản phẩm'}
+        </h1>
+        <div className="flex items-center justify-between">
+          <p className="text-gray-600">
+            {loading ? 'Đang tải...' : 
+              `Hiển thị ${(currentPage - 1) * ITEMS_PER_PAGE + 1}-${Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} trong ${totalCount} sản phẩm`
+            }
+          </p>
+          <p className="text-sm text-gray-500">
+            Trang {currentPage} / {totalPages}
+          </p>
+        </div>
       </div>
 
-      {/* Filter nhãn */}
-      <div className="mb-8 flex items-center flex-wrap gap-2">
-        <div className="flex items-center gap-2 mr-4 text-gray-600">
-          <Filter className="w-4 h-4" />
-          <span className="text-sm font-medium">Lọc theo nhãn:</span>
+      {/* Loading State */}
+      {loading && (
+        <div className="text-center py-16">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">{debugInfo}</p>
         </div>
+      )}
 
-        {LABELS.map((lb) => (
-          <button
-            key={lb}
-            onClick={() => setParam('label', lb)}
-            className={`px-4 py-2 rounded-full text-sm font-semibold border transition ${
-              labelFilter === lb
-                ? 'bg-black text-white border-black'
-                : 'bg-white text-gray-700 border-gray-300 hover:border-black'
-            }`}
-          >
-            {lb === 'all' ? 'Tất cả' : lb}
-          </button>
-        ))}
-      </div>
-
-      {/* Grid sản phẩm */}
-      {loading ? (
-        <div className="flex items-center gap-2 text-gray-500">
-          <Loader2 className="w-5 h-5 animate-spin" />
-          Đang tải sản phẩm...
-        </div>
-      ) : products.length === 0 ? (
-        <div className="text-gray-500">Không có sản phẩm nào phù hợp.</div>
-      ) : (
+      {/* Products Grid */}
+      {!loading && (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {products.map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))}
-          </div>
+          {products.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="text-gray-400 mb-4">
+                <svg className="mx-auto h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Chưa có sản phẩm
+              </h3>
+              <p className="text-gray-600 mb-4">
+                Danh mục này hiện chưa có sản phẩm nào.
+              </p>
+              <Link 
+                to="/products" 
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Xem tất cả sản phẩm
+              </Link>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-6 mb-8">
+                {products.map((product) => (
+                  <div key={product.id} className="bg-white rounded-lg shadow-sm border overflow-hidden group hover:shadow-md transition-shadow">
+                    <div className="relative">
+                      <Link to={`/product/${product.id}`}>
+                        <img 
+                          src={product.image} 
+                          alt={product.name}
+                          className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                          loading="lazy"
+                          onError={(e) => {
+                            e.currentTarget.src = 'https://via.placeholder.com/300x300?text=No+Image';
+                          }}
+                        />
+                      </Link>
+                      
+                      {/* Label Badge */}
+                      {product.label && (
+                        <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded font-medium">
+                          {product.label}
+                        </span>
+                      )}
+                    </div>
 
-          {/* Pagination */}
-          <Pagination
-            page={page}
-            total={total}
-            pageSize={PAGE_SIZE}
-            onChange={(nextPage) => setParam('page', String(nextPage))}
-          />
+                    <div className="p-4">
+                      <Link to={`/product/${product.id}`}>
+                        <h3 className="font-semibold text-sm mb-2 line-clamp-2 hover:text-blue-600 transition-colors">
+                          {product.name}
+                        </h3>
+                      </Link>
+                      
+                      <div className="mb-3">
+                        <span className="text-lg font-bold text-orange-600">
+                          {formatPrice(product.price)}
+                        </span>
+                      </div>
+
+                      <Link 
+                        to={`/product/${product.id}`}
+                        className="w-full bg-gray-100 hover:bg-blue-600 hover:text-white text-gray-800 py-2 px-4 rounded-lg text-sm font-medium flex items-center justify-center transition-all duration-200"
+                      >
+                        Xem chi tiết
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                  className="mt-8"
+                />
+              )}
+            </>
+          )}
         </>
       )}
-    </section>
-  );
-};
 
-export default CategoryPage;
+    </div>
+  );
+}
